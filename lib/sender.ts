@@ -2,11 +2,20 @@ import { Task } from "./task";
 import { FileNode } from "./filenode";
 import { Chunk, FileRange } from "./chunk";
 
-export interface FileState {
-  state: 'already_existing' | 'created' | 'to_upload';
-  uploadUrl?: string;
-  node?: FileNode;
+export interface FileStateExisting {
+  state: 'already_existing';
+  node: FileNode;
 }
+export interface FileStateCreated {
+  state: 'created';
+  node: FileNode;
+}
+export interface FileStateToUpload {
+  state: 'to_upload';
+  uploadUrl: string;
+}
+
+export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
 
 export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>
 

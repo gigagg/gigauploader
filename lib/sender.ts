@@ -1,0 +1,192 @@
+import { Task } from "./task";
+import { FileNode } from "./filenode";
+import { Chunk, FileRange } from "./chunk";
+
+export interface FileState {
+  state: 'already_existing' | 'created' | 'to_upload';
+  uploadUrl?: string;
+  node?: FileNode;
+}
+
+export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>
+
+export interface TodoItem {
+  name: string;
+  task: Task<FileNode>;
+  sha1: string;
+}
+
+export interface CurrentItem extends TodoItem {
+  chunk: Chunk | null;
+  url: string | null;
+  aborted: boolean;
+  sent: number;
+}
+
+export class Sender {
+  private todo: TodoItem[] = [];
+  private current: CurrentItem | undefined = undefined;
+  private _paused = false;
+  private chunkSize = 128 * 1024;
+  private isChunkSending = false;
+
+  public constructor(
+    private fstate: FileStateCallback
+  ) {
+  }
+
+  public sendFile(file: Blob, filename: string, sha1: string): Task<FileNode> {
+    const task = new Task<FileNode>(file, sha1);
+    this.todo.push({
+      name: filename, task, sha1,
+    });
+    this.launchNext();
+    return task;
+  }
+
+  public get paused(): boolean {
+    return this._paused;
+  }
+
+  public set paused(p: boolean) {
+    this._paused = p;
+    this.launchNext();
+  }
+
+  public remove(task: Task<FileNode>) {
+    if (this.current != null && this.current.task === task) {
+      if (this.current.chunk != null) {
+        this.current.aborted = true;
+        this.current.chunk.abort();
+      }
+      this.current = undefined;
+      this.launchNext();
+    } else {
+      const index = this.todo.findIndex(w => w.task === task);
+      if (index !== -1) {
+        this.todo.splice(index, 1);
+      }
+    }
+  }
+
+  private launchNext() {
+    if (this._paused) {
+      return;
+    }
+    if (this.current == null && this.todo.length > 0) {
+      const tmp = this.todo.shift();
+      if (tmp == null) {
+        throw new Error("tmp must not be null");
+      }
+      this.current = {
+        ...tmp,
+        chunk: null,
+        url: null,
+        aborted: false,
+        sent: 0,
+      }
+      this.current.task._progress(0);
+      this.urlLookup();
+    }
+
+    if (this.current != null && this.current.url != null && !this.isChunkSending) {
+      this.launchNextChunk(this.current);
+    }
+  }
+
+  private urlLookup() {
+    if (this.current == null) {
+      return;
+    }
+    if (this.current.aborted) {
+      return;
+    }
+    const current = this.current;
+    this.fstate(this.current.sha1, this.current.name)
+      .then(response => {
+        switch (response.state) {
+          case 'already_existing':
+            if (response.node == null) {
+              throw new Error("response.node should not be null");
+            }
+            current.task._resolve(response.node);
+            break;
+          case 'created':
+            if (response.node == null) {
+              throw new Error("response.node should not be null");
+            }
+            current.task._resolve(response.node);
+            break;
+          case 'to_upload':
+            if (response.uploadUrl == null) {
+              throw new Error("uploadUrl should not be null");
+            }
+            current.url = response.uploadUrl;
+            current.task._progress(0);
+            this.launchNextChunk(current);
+            break;
+        }
+      }, err => {
+        current.task._reject(err);
+        this.current = undefined;
+        this.launchNext();
+      });
+  }
+
+  private launchNextChunk(current: CurrentItem) {
+    if (current.aborted || this._paused) {
+      return;
+    }
+    if (current.url == null) {
+      throw new Error("url should not be null");
+    }
+    if (current.chunk == null) {
+      current.chunk = new Chunk(current.task.file, current.name, current.url, 0, this.chunkSize, current.sha1);
+    } else {
+      current.chunk = current.chunk.next(this.chunkSize, current.sent);
+    }
+    const chunk = current.chunk;
+    if (chunk == null) {
+      throw new Error("Chunk should not be null");
+    }
+    current.sent = 0;
+
+    this.isChunkSending = true;
+    const startSendAt = new Date().getTime();
+    chunk.send().tap((done: number) => {
+      current.task._progress(current.sent + done);
+    }).then((value: FileNode | FileRange) => {
+      this.isChunkSending = false;
+      if (value.type === 'range') {
+        current.task._progress(value.end);
+        current.sent = value.end;
+        const duration = new Date().getTime() - startSendAt;
+        this.refreshChunkSize(duration);
+        this.launchNextChunk(current);
+      } else if (value.type === 'file') {
+        current.task._progress(current.task.file.size);
+        current.sent = current.task.file.size;
+        current.task._resolve(value);
+        this.current = undefined;
+        this.launchNext();
+      } else {
+        throw new Error("unreachable: " + (value as any).type);
+      }
+    }, (err: any) => {
+      this.isChunkSending = false;
+      current.task._reject(err);
+      this.current = undefined;
+      this.chunkSize = 1024 * 128;
+      this.launchNext();
+    });
+  }
+
+  private refreshChunkSize(msDuration: number) {
+    if (msDuration < 1000 && this.chunkSize <= 1024 * 1024 * 4) {
+      this.chunkSize *= 2;
+    }
+    if (msDuration > 2000 && this.chunkSize >= 1024 * 256) {
+      this.chunkSize /= 2;
+    }
+  }
+}

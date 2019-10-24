@@ -1,0 +1,30 @@
+{
+  "name": "gigauploader",
+  "version": "1.0.0",
+  "description": "An uploader library for the GiGa.GG service",
+  "main": "dist/index.js",
+  "files": ["dist/**/*"],
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "mocha --reporter spec",
+    "build": "tsc && copyfiles -f ./lib/*.worker.js ./dist/",
+    "prepare" : "npm run build",
+    "postversion" : "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gigagg/gigauploader.git"
+  },
+  "author": "t.guyard@gigatribe.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gigagg/gigauploader/issues"
+  },
+  "homepage": "https://github.com/gigagg/gigauploader#readme",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "copyfiles": "^2.1.1",
+    "mocha": "^6.2.2",
+    "typescript": "^3.6.4"
+  }
+}

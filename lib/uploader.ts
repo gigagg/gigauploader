@@ -1,10 +1,10 @@
-import { Upload } from "./upload";
-import { FileStateCallback, Sender } from "./sender";
-import { Hasher } from "./hasher";
+import { Upload } from './upload';
+import { FileStateCallback, Sender } from './sender';
+import { Hasher } from './hasher';
 
 export interface UploadConfig {
-  deduplicate: FileStateCallback,
-  workerUrl: string,
+  deduplicate: FileStateCallback;
+  workerUrl: string;
 }
 
 export class Uploader {
@@ -22,7 +22,7 @@ export class Uploader {
   }
 
   public get paused(): boolean {
-    return this._paused
+    return this._paused;
   }
 
   public set paused(paused: boolean) {
@@ -48,7 +48,7 @@ export class Uploader {
   }
 
   public remove(upload: Upload) {
-    var index = this.uploads.indexOf(upload);
+    const index = this.uploads.indexOf(upload);
     if (index > -1) {
       this.uploads.splice(index, 1);
       upload.abort();

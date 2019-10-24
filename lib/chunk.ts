@@ -1,5 +1,5 @@
-import { FileNode } from "./filenode";
-import { Task } from "./task";
+import { FileNode } from './filenode';
+import { Task } from './task';
 
 export interface FileRange {
   start: number;
@@ -23,10 +23,10 @@ function parseRange(str: string): FileRange | null {
     return null;
   }
 
-  if (result[2] === "") {
+  if (result[2] === '') {
     result[2] = result[3];
   }
-  if (result[1] === "") {
+  if (result[1] === '') {
     result[1] = result[2];
   }
   return {
@@ -48,12 +48,13 @@ export class Chunk {
     private readonly file: Blob,
     private readonly filename: string,
     private readonly url: string,
+    private readonly token: string,
     private readonly firstByte: number,
     size: number,
     private readonly sessionId: string,
   ) {
     this.lastByte = Math.min(file.size - 1, firstByte + size);
-    this.view = file.slice(this.firstByte, this.lastByte + 1)
+    this.view = file.slice(this.firstByte, this.lastByte + 1);
   }
 
   public isLast() {
@@ -68,6 +69,7 @@ export class Chunk {
       this.file,
       this.filename,
       this.url,
+      this.token,
       sent + 1,
       Math.min(size, this.file.size - this.lastByte - 1),
       this.sessionId
@@ -91,7 +93,7 @@ export class Chunk {
     req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
     req.onerror = (event) => task._reject({
       status: 500,
-      response: "Request error",
+      response: 'Request error',
       data: event.target,
     });
     req.onload = () => {
@@ -115,14 +117,15 @@ export class Chunk {
       } catch (e) {
         this.retryOrReject(task, e);
       }
-    }
+    };
 
     req.open('POST', this.url, true);
-    req.setRequestHeader("Content-Type", this.file.type || 'application/octet-stream');
-    req.setRequestHeader("Content-Range", 'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size);
-    req.setRequestHeader("Content-Disposition", 'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"');
-    req.setRequestHeader("Session-Id", this.sessionId);
-    req.withCredentials = true;
+    req.setRequestHeader('Content-Type', this.file.type || 'application/octet-stream');
+    req.setRequestHeader('Content-Range', 'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size);
+    req.setRequestHeader('Content-Disposition', 'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"');
+    req.setRequestHeader('Session-Id', this.sessionId);
+    req.setRequestHeader('Authorization', 'Bearer ' + this.token);
+    // req.withCredentials = true;
     req.send(this.view);
 
     return task;
@@ -131,7 +134,7 @@ export class Chunk {
   private retryOrReject(task: Task<FileRange | FileNode>, error: any) {
     if (this.retryLeft === 0) {
       task._reject({
-        error: "Cannot parse response",
+        error: 'Cannot parse response',
         data: error,
       });
       return;

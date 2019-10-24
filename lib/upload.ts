@@ -1,7 +1,7 @@
-import { Task } from "./task";
-import { Hasher } from "./hasher";
-import { Sender } from "./sender";
-import { FileNode } from "./filenode";
+import { Task } from './task';
+import { Hasher } from './hasher';
+import { Sender } from './sender';
+import { FileNode } from './filenode';
 
 export type UploadState = 'pending' | 'hashing' | 'sending' | 'aborted' | 'error' | 'finished';
 
@@ -41,8 +41,8 @@ export class UploadProgress {
 
     const previous = (this.index === this.saved.length - 1) ? 0 : this.index + 1;
     this.percent = 100 * this.done / this.total;
-    if (this.index != previous && this.saved[this.index].time - this.saved[previous].time !== 0) {
-      this.speed = (this.saved[this.index].done - this.saved[previous].done) / (this.saved[this.index].time - this.saved[previous].time)
+    if (this.index !== previous && this.saved[this.index].time - this.saved[previous].time !== 0) {
+      this.speed = (this.saved[this.index].done - this.saved[previous].done) / (this.saved[this.index].time - this.saved[previous].time);
     }
     console.log(this.done, this.index, previous, this.saved.length, this.speed);
   }
@@ -84,7 +84,7 @@ export class Upload {
 
   private async start(): Promise<FileNode | null> {
     try {
-      this.hashTask = this.hasher.hashFile(this.file)
+      this.hashTask = this.hasher.hashFile(this.file);
       const sha1 = await this.hashTask.tap(hashed => {
         this.state = 'hashing';
         this.progress._setProgress(hashed);

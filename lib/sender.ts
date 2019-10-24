@@ -1,6 +1,6 @@
-import { Task } from "./task";
-import { FileNode } from "./filenode";
-import { Chunk, FileRange } from "./chunk";
+import { Task } from './task';
+import { FileNode } from './filenode';
+import { Chunk, FileRange } from './chunk';
 
 export interface FileStateExisting {
   state: 'already_existing';
@@ -13,11 +13,12 @@ export interface FileStateCreated {
 export interface FileStateToUpload {
   state: 'to_upload';
   uploadUrl: string;
+  token: string;
 }
 
 export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
 
-export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>
+export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>;
 
 export interface TodoItem {
   name: string;
@@ -27,7 +28,9 @@ export interface TodoItem {
 
 export interface CurrentItem extends TodoItem {
   chunk: Chunk | null;
-  url: string | null;
+  uploadUrl: string | null;
+  token: string | null;
+
   aborted: boolean;
   sent: number;
 }
@@ -85,20 +88,24 @@ export class Sender {
     if (this.current == null && this.todo.length > 0) {
       const tmp = this.todo.shift();
       if (tmp == null) {
-        throw new Error("tmp must not be null");
+        throw new Error('tmp must not be null');
       }
       this.current = {
         ...tmp,
         chunk: null,
-        url: null,
+        uploadUrl: null,
+        token: null,
         aborted: false,
         sent: 0,
-      }
+      };
       this.current.task._progress(0);
       this.urlLookup();
     }
 
-    if (this.current != null && this.current.url != null && !this.isChunkSending) {
+    if (this.current != null &&
+      this.current.uploadUrl != null &&
+      this.current.token != null &&
+      !this.isChunkSending) {
       this.launchNextChunk(this.current);
     }
   }
@@ -116,21 +123,22 @@ export class Sender {
         switch (response.state) {
           case 'already_existing':
             if (response.node == null) {
-              throw new Error("response.node should not be null");
+              throw new Error('response.node should not be null');
             }
             current.task._resolve(response.node);
             break;
           case 'created':
             if (response.node == null) {
-              throw new Error("response.node should not be null");
+              throw new Error('response.node should not be null');
             }
             current.task._resolve(response.node);
             break;
           case 'to_upload':
             if (response.uploadUrl == null) {
-              throw new Error("uploadUrl should not be null");
+              throw new Error('uploadUrl should not be null');
             }
-            current.url = response.uploadUrl;
+            current.uploadUrl = response.uploadUrl;
+            current.token = response.token;
             current.task._progress(0);
             this.launchNextChunk(current);
             break;
@@ -146,17 +154,17 @@ export class Sender {
     if (current.aborted || this._paused) {
       return;
     }
-    if (current.url == null) {
-      throw new Error("url should not be null");
+    if (current.uploadUrl == null || current.token == null) {
+      throw new Error('url and token should not be null');
     }
     if (current.chunk == null) {
-      current.chunk = new Chunk(current.task.file, current.name, current.url, 0, this.chunkSize, current.sha1);
+      current.chunk = new Chunk(current.task.file, current.name, current.uploadUrl, current.token, 0, this.chunkSize, current.sha1);
     } else {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }
     const chunk = current.chunk;
     if (chunk == null) {
-      throw new Error("Chunk should not be null");
+      throw new Error('Chunk should not be null');
     }
     current.sent = 0;
 
@@ -179,7 +187,7 @@ export class Sender {
         this.current = undefined;
         this.launchNext();
       } else {
-        throw new Error("unreachable: " + (value as any).type);
+        throw new Error('unreachable: ' + (value as any).type);
       }
     }, (err: any) => {
       this.isChunkSending = false;

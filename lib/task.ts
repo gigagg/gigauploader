@@ -1,6 +1,6 @@
 
 export class Task<T> {
-  private promise: Promise<T>
+  private promise: Promise<T>;
 
   public _progress: ((done: number) => void) = () => { };
   public _resolve: ((value: T) => void) = () => { };

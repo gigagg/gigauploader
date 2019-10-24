@@ -1,4 +1,4 @@
-import { Task } from "./task";
+import { Task } from './task';
 
 export class Hasher {
   private todo: Task<string>[] = [];
@@ -21,7 +21,7 @@ export class Hasher {
   }
 
   private initializeWorker() {
-    this.worker.addEventListener("error", data => {
+    this.worker.addEventListener('error', data => {
       console.log(data);
       this.launchNext();
     }, false);

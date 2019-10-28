@@ -3,7 +3,6 @@ import { FileStateCallback, Sender } from './sender';
 import { Hasher } from './hasher';
 
 export interface UploadConfig {
-  deduplicate: FileStateCallback;
   workerUrl: string;
 }
 
@@ -17,7 +16,7 @@ export class Uploader {
   public constructor(
     config: UploadConfig
   ) {
-    this.sender = new Sender(config.deduplicate);
+    this.sender = new Sender();
     this.hasher = new Hasher(config.workerUrl);
   }
 
@@ -40,8 +39,8 @@ export class Uploader {
     }
   }
 
-  public add(file: Blob, fileName: string): Upload {
-    const up = new Upload(file, fileName, this.hasher, this.sender);
+  public add(file: Blob, fileName: string, deduplicate: FileStateCallback): Upload {
+    const up = new Upload(file, fileName, deduplicate, this.hasher, this.sender);
     this.uploads.push(up);
     this.startProgress();
     return up;

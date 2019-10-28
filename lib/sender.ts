@@ -24,6 +24,7 @@ export interface TodoItem {
   name: string;
   task: Task<FileNode>;
   sha1: string;
+  deduplicate: FileStateCallback;
 }
 
 export interface CurrentItem extends TodoItem {
@@ -42,15 +43,12 @@ export class Sender {
   private chunkSize = 128 * 1024;
   private isChunkSending = false;
 
-  public constructor(
-    private fstate: FileStateCallback
-  ) {
-  }
+  public constructor() { }
 
-  public sendFile(file: Blob, filename: string, sha1: string): Task<FileNode> {
+  public sendFile(file: Blob, filename: string, sha1: string, deduplicate: FileStateCallback): Task<FileNode> {
     const task = new Task<FileNode>(file, sha1);
     this.todo.push({
-      name: filename, task, sha1,
+      name: filename, task, sha1, deduplicate
     });
     this.launchNext();
     return task;
@@ -118,7 +116,7 @@ export class Sender {
       return;
     }
     const current = this.current;
-    this.fstate(this.current.sha1, this.current.name)
+    current.deduplicate(this.current.sha1, this.current.name)
       .then(response => {
         switch (response.state) {
           case 'already_existing':

@@ -1,6 +1,6 @@
 import { Task } from './task';
 import { Hasher } from './hasher';
-import { Sender } from './sender';
+import { Sender, FileStateCallback } from './sender';
 import { FileNode } from './filenode';
 
 export type UploadState = 'pending' | 'hashing' | 'sending' | 'aborted' | 'error' | 'finished';
@@ -74,6 +74,7 @@ export class Upload {
   public constructor(
     private file: Blob,
     public fileName: string,
+    private deduplicate: FileStateCallback,
     private hasher: Hasher,
     private sender: Sender,
   ) {
@@ -91,7 +92,7 @@ export class Upload {
       });
       this.progress._setProgress(this.file.size);
 
-      this.sendTask = this.sender.sendFile(this.file, this.fileName, sha1);
+      this.sendTask = this.sender.sendFile(this.file, this.fileName, sha1, this.deduplicate);
       const fileNode = await this.sendTask.tap(sent => {
         if (sent === 0) {
           this.progress._reset();

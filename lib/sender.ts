@@ -1,6 +1,7 @@
 import { Task } from './task';
 import { FileNode } from './filenode';
 import { Chunk, FileRange } from './chunk';
+import { UploadState } from './upload';
 
 export interface FileStateExisting {
   state: 'already_existing';
@@ -79,9 +80,9 @@ export class Sender {
     }
   }
 
-  private launchNext() {
+  private launchNext(): Promise<UploadState | 'paused'> {
     if (this._paused) {
-      return;
+      return Promise.resolve('paused');
     }
     if (this.current == null && this.todo.length > 0) {
       const tmp = this.todo.shift();
@@ -97,60 +98,65 @@ export class Sender {
         sent: 0,
       };
       this.current.task._progress(0);
-      this.urlLookup();
+      return this.urlLookup();
     }
 
     if (this.current != null &&
       this.current.uploadUrl != null &&
       this.current.token != null &&
       !this.isChunkSending) {
-      this.launchNextChunk(this.current);
+      return this.launchNextChunk(this.current);
     }
+
+    return Promise.resolve('pending');
   }
 
-  private urlLookup() {
+  private async urlLookup(): Promise<UploadState | 'paused'> {
     if (this.current == null) {
-      return;
+      return Promise.resolve('pending');
     }
     if (this.current.aborted) {
-      return;
+      return Promise.resolve('aborted');
     }
     const current = this.current;
-    current.deduplicate(this.current.sha1, this.current.name)
-      .then(response => {
-        switch (response.state) {
-          case 'already_existing':
-            if (response.node == null) {
-              throw new Error('response.node should not be null');
-            }
-            current.task._resolve(response.node);
-            break;
-          case 'created':
-            if (response.node == null) {
-              throw new Error('response.node should not be null');
-            }
-            current.task._resolve(response.node);
-            break;
-          case 'to_upload':
-            if (response.uploadUrl == null) {
-              throw new Error('uploadUrl should not be null');
-            }
-            current.uploadUrl = response.uploadUrl;
-            current.token = response.token;
-            current.task._progress(0);
-            this.launchNextChunk(current);
-            break;
-        }
-      }, err => {
-        current.task._reject(err);
-        this.current = undefined;
-        this.launchNext();
-      });
+    try {
+      const response = await current.deduplicate(this.current.sha1, this.current.name);
+      switch (response.state) {
+        case 'already_existing':
+          if (response.node == null) {
+            throw new Error('response.node should not be null');
+          }
+          current.task._resolve(response.node);
+          return 'finished';
+        case 'created':
+          if (response.node == null) {
+            throw new Error('response.node should not be null');
+          }
+          current.task._resolve(response.node);
+          return 'finished';
+        case 'to_upload':
+          if (response.uploadUrl == null) {
+            throw new Error('uploadUrl should not be null');
+          }
+          current.uploadUrl = response.uploadUrl;
+          current.token = response.token;
+          current.task._progress(0);
+          return this.launchNextChunk(current);
+      }
+      throw new Error('Invalid response.state');
+    } catch (err) {
+      current.task._reject(err);
+      this.current = undefined;
+      return this.launchNext();
+    }
   }
 
-  private launchNextChunk(current: CurrentItem) {
-    if (current.aborted || this._paused) {
-      return;
+  private async launchNextChunk(current: CurrentItem): Promise<UploadState | 'paused'> {
+    if (current.aborted) {
+      return Promise.resolve('aborted');
+    }
+    if (this._paused) {
+      return Promise.resolve('paused');
     }
     if (current.uploadUrl == null || current.token == null) {
       throw new Error('url and token should not be null');
@@ -168,32 +174,33 @@ export class Sender {
 
     this.isChunkSending = true;
     const startSendAt = new Date().getTime();
-    chunk.send().tap((done: number) => {
-      current.task._progress(current.sent + done);
-    }).then((value: FileNode | FileRange) => {
+    try {
+      const value = await chunk.send().tap((done: number) => {
+        current.task._progress(current.sent + done);
+      });
       this.isChunkSending = false;
       if (value.type === 'range') {
         current.task._progress(value.end);
         current.sent = value.end;
         const duration = new Date().getTime() - startSendAt;
         this.refreshChunkSize(duration);
-        this.launchNextChunk(current);
-      } else if (value.type === 'file') {
+        return this.launchNextChunk(current);
+      }
+      if (value.type === 'file') {
         current.task._progress(current.task.file.size);
         current.sent = current.task.file.size;
         current.task._resolve(value);
         this.current = undefined;
-        this.launchNext();
-      } else {
-        throw new Error('unreachable: ' + (value as any).type);
+        return this.launchNext();
       }
-    }, (err: any) => {
+      throw new Error('unreachable: ' + (value as any).type);
+    } catch (err) {
       this.isChunkSending = false;
       current.task._reject(err);
       this.current = undefined;
       this.chunkSize = 1024 * 128;
-      this.launchNext();
-    });
+      return this.launchNext();
+    }
   }
 
   private refreshChunkSize(msDuration: number) {

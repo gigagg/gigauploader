@@ -44,7 +44,6 @@ export class UploadProgress {
     if (this.index !== previous && this.saved[this.index].time - this.saved[previous].time !== 0) {
       this.speed = (this.saved[this.index].done - this.saved[previous].done) / (this.saved[this.index].time - this.saved[previous].time);
     }
-    console.log(this.done, this.index, previous, this.saved.length, this.speed);
   }
 
   public _setProgress(done: number) {

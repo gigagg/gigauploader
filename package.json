@@ -10,6 +10,7 @@
   "scripts": {
     "test": "mocha --reporter spec",
     "build": "tsc && copyfiles -f ./lib/*.worker.js ./dist/",
+    "lint": "tslint --project .",
     "prepare": "npm run build",
     "postversion": "git push && git push --tags"
   },

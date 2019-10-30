@@ -127,12 +127,14 @@ export class Sender {
             throw new Error('response.node should not be null');
           }
           current.task._resolve(response.node);
+          this.current = undefined;
           return 'finished';
         case 'created':
           if (response.node == null) {
             throw new Error('response.node should not be null');
           }
           current.task._resolve(response.node);
+          this.current = undefined;
           return 'finished';
         case 'to_upload':
           if (response.uploadUrl == null) {

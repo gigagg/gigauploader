@@ -22,7 +22,7 @@ export class Hasher {
 
   private initializeWorker() {
     this.worker.addEventListener('error', data => {
-      console.log(data);
+      console.error(data);
       this.launchNext();
     }, false);
 
@@ -30,10 +30,12 @@ export class Hasher {
       const data = ev.data;
       if (data.id == null) {
         console.error('id must never be null');
+        this.launchNext();
         return;
       }
       const task = this.current;
       if (task == null) {
+        this.launchNext();
         return;
       }
       if (data.progress != null) {

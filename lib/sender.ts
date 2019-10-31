@@ -1,6 +1,6 @@
 import { Task } from './task';
 import { FileNode } from './filenode';
-import { Chunk, FileRange } from './chunk';
+import { Chunk } from './chunk';
 import { UploadState } from './upload';
 
 export interface FileStateExisting {
@@ -128,14 +128,14 @@ export class Sender {
           }
           current.task._resolve(response.node);
           this.current = undefined;
-          return 'finished';
+          return this.launchNext();
         case 'created':
           if (response.node == null) {
             throw new Error('response.node should not be null');
           }
           current.task._resolve(response.node);
           this.current = undefined;
-          return 'finished';
+          return this.launchNext();
         case 'to_upload':
           if (response.uploadUrl == null) {
             throw new Error('uploadUrl should not be null');
@@ -199,8 +199,8 @@ export class Sender {
     } catch (err) {
       this.isChunkSending = false;
       current.task._reject(err);
-      this.current = undefined;
       this.chunkSize = 1024 * 128;
+      this.current = undefined;
       return this.launchNext();
     }
   }

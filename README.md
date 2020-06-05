@@ -16,8 +16,6 @@ $ npm i --save gigauploader
 ```
 
 
-
-
 ## Usage
 
 

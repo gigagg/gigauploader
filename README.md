@@ -55,18 +55,6 @@ export class AppComponent {
 
   public constructor() {
     this.uploader = new Uploader({
-      deduplicate: (sha1: string, filename: string): Promise<FileState> => {
-        return new Promise<FileState>(resolve => {
-
-          // Here you should ask for an upload url to your backend
-          // You should return something like that :
-          resolve({
-            uploadUrl: 'https://cloud39.giga.gg/upload/?s=5b4de972e6717000093a8c72&n=3iBVzCEwy7tNvB12eaFiYN0lfX0tCCptXo1v11nQ1r0%3D',
-            state: 'to_upload',
-          });
-        });
-      },
-
       // Make sure the rusha.worker.js is available at that url
       workerUrl: '/assets/rusha.worker.js',
     });
@@ -83,11 +71,31 @@ export class AppComponent {
   }
 
   public addUpload(file: File) {
-    this.uploader.add(file, file.name).promise.then((filenode: FileNode|null) => {
-      console.log('success', filenode);
-    }, err => {
-      console.log(err);
+    const upload = this.uploader.add(
+      file,
+      file.name,
+      (sha1: string, fileName: string): Promise<FileState> => {
+
+        //
+        // Make the http request to the backend / GiGa
+        //
+
+        return this.http.post(/* example: /rest/node */).toPromise()
+      }
+    );
+    const promise = upload.promise.then((filenode: FileNode | null) => {
+      if (filenode != null) {
+        // the file has been uploaded. Update your state here.
+      }
+      this.uploader.remove(upload);
+      return null;
     });
+    return from(promise);
+  }
+
+
+  public abort(up: Upload) {
+    this.uploader.remove(up);
   }
 }
 

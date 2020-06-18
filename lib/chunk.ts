@@ -19,12 +19,7 @@ function parseRange(str: string): FileRange | null {
 
   rangeRegex.lastIndex = 0;
   const result = rangeRegex.exec(str);
-  if (
-    result == null ||
-    result[1] == null ||
-    result[2] == null ||
-    result[3] == null
-  ) {
+  if (result == null || result[1] == null || result[2] == null || result[3] == null) {
     return null;
   }
 
@@ -94,8 +89,7 @@ export class Chunk {
   private dosend(task: Task<FileRange | FileNode>) {
     this.req = new XMLHttpRequest();
     const req = this.req;
-    req.upload.onprogress = (event: ProgressEvent) =>
-      task._progress(event.loaded + this.firstByte);
+    req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
     req.onerror = (event) =>
       task._reject({
         status: 500,
@@ -106,9 +100,7 @@ export class Chunk {
       try {
         if (req.status < 300) {
           const range = parseRange(
-            req.getResponseHeader('FileRange') ||
-              req.getResponseHeader('range') ||
-              req.responseText
+            req.getResponseHeader('FileRange') || req.getResponseHeader('range') || req.responseText
           );
           if (range != null) {
             task._resolve(range);
@@ -126,25 +118,20 @@ export class Chunk {
     };
 
     req.open('POST', this.url, true);
-    req.setRequestHeader(
-      'Content-Type',
-      this.file.type || 'application/octet-stream'
-    );
+    req.setRequestHeader('Content-Type', this.file.type || 'application/octet-stream');
     req.setRequestHeader(
       'Content-Range',
       'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size
     );
     req.setRequestHeader(
       'Content-Disposition',
-      'attachment, filename="' +
-        encodeURIComponent(this.filename || 'name') +
-        '"'
+      'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"'
     );
     req.setRequestHeader('Session-Id', this.sessionId);
     if (this.token == null || this.token === '') {
-      req.setRequestHeader('Authorization', 'Bearer ' + this.token);
-    } else {
       req.withCredentials = true;
+    } else {
+      req.setRequestHeader('Authorization', 'Bearer ' + this.token);
     }
     req.send(this.view);
 

@@ -165,8 +165,8 @@ export class Sender {
     if (this._paused) {
       return Promise.resolve('paused');
     }
-    if (current.uploadUrl == null || current.token == null) {
-      throw new Error('url and token should not be null');
+    if (current.uploadUrl == null) {
+      throw new Error('url should not be null');
     }
     if (current.chunk == null) {
       current.chunk = new Chunk(

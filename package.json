@@ -1,6 +1,6 @@
 {
   "name": "gigauploader",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "An uploader library for the GiGa.GG service",
   "main": "dist/index.js",
   "files": [

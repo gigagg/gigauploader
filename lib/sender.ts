@@ -17,15 +17,9 @@ export interface FileStateToUpload {
   token: string | null;
 }
 
-export type FileState =
-  | FileStateExisting
-  | FileStateCreated
-  | FileStateToUpload;
+export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
 
-export type FileStateCallback = (
-  sha1: string,
-  filename: string
-) => Promise<FileState>;
+export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>;
 
 export interface TodoItem {
   name: string;
@@ -115,11 +109,7 @@ export class Sender {
       return this.urlLookup();
     }
 
-    if (
-      this.current != null &&
-      this.current.uploadUrl != null &&
-      !this.isChunkSending
-    ) {
+    if (this.current != null && this.current.uploadUrl != null && !this.isChunkSending) {
       return this.launchNextChunk(this.current);
     }
 
@@ -135,10 +125,7 @@ export class Sender {
     }
     const current = this.current;
     try {
-      const response = await current.deduplicate(
-        this.current.sha1,
-        this.current.name
-      );
+      const response = await current.deduplicate(this.current.sha1, this.current.name);
       switch (response.state) {
         case 'already_existing':
           if (response.node == null) {
@@ -171,9 +158,7 @@ export class Sender {
     }
   }
 
-  private async launchNextChunk(
-    current: CurrentItem
-  ): Promise<UploadState | 'paused'> {
+  private async launchNextChunk(current: CurrentItem): Promise<UploadState | 'paused'> {
     if (current.aborted) {
       return Promise.resolve('aborted');
     }

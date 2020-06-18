@@ -14,12 +14,18 @@ export interface FileStateCreated {
 export interface FileStateToUpload {
   state: 'to_upload';
   uploadUrl: string;
-  token: string;
+  token: string | null;
 }
 
-export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
+export type FileState =
+  | FileStateExisting
+  | FileStateCreated
+  | FileStateToUpload;
 
-export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>;
+export type FileStateCallback = (
+  sha1: string,
+  filename: string
+) => Promise<FileState>;
 
 export interface TodoItem {
   name: string;
@@ -44,12 +50,20 @@ export class Sender {
   private chunkSize = 128 * 1024;
   private isChunkSending = false;
 
-  public constructor() { }
+  public constructor() {}
 
-  public sendFile(file: Blob, filename: string, sha1: string, deduplicate: FileStateCallback): Task<FileNode> {
+  public sendFile(
+    file: Blob,
+    filename: string,
+    sha1: string,
+    deduplicate: FileStateCallback
+  ): Task<FileNode> {
     const task = new Task<FileNode>(file, sha1);
     this.todo.push({
-      name: filename, task, sha1, deduplicate
+      name: filename,
+      task,
+      sha1,
+      deduplicate,
     });
     this.launchNext();
     return task;
@@ -73,7 +87,7 @@ export class Sender {
       this.current = undefined;
       this.launchNext();
     } else {
-      const index = this.todo.findIndex(w => w.task === task);
+      const index = this.todo.findIndex((w) => w.task === task);
       if (index !== -1) {
         this.todo.splice(index, 1);
       }
@@ -101,10 +115,11 @@ export class Sender {
       return this.urlLookup();
     }
 
-    if (this.current != null &&
+    if (
+      this.current != null &&
       this.current.uploadUrl != null &&
-      this.current.token != null &&
-      !this.isChunkSending) {
+      !this.isChunkSending
+    ) {
       return this.launchNextChunk(this.current);
     }
 
@@ -120,7 +135,10 @@ export class Sender {
     }
     const current = this.current;
     try {
-      const response = await current.deduplicate(this.current.sha1, this.current.name);
+      const response = await current.deduplicate(
+        this.current.sha1,
+        this.current.name
+      );
       switch (response.state) {
         case 'already_existing':
           if (response.node == null) {
@@ -153,7 +171,9 @@ export class Sender {
     }
   }
 
-  private async launchNextChunk(current: CurrentItem): Promise<UploadState | 'paused'> {
+  private async launchNextChunk(
+    current: CurrentItem
+  ): Promise<UploadState | 'paused'> {
     if (current.aborted) {
       return Promise.resolve('aborted');
     }
@@ -164,7 +184,15 @@ export class Sender {
       throw new Error('url and token should not be null');
     }
     if (current.chunk == null) {
-      current.chunk = new Chunk(current.task.file, current.name, current.uploadUrl, current.token, 0, this.chunkSize, current.sha1);
+      current.chunk = new Chunk(
+        current.task.file,
+        current.name,
+        current.uploadUrl,
+        current.token,
+        0,
+        this.chunkSize,
+        current.sha1
+      );
     } else {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }

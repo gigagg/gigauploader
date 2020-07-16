@@ -1,6 +1,7 @@
 import { Upload } from './upload';
 import { FileStateCallback, Sender } from './sender';
 import { Hasher } from './hasher';
+import { FileNode } from './filenode';
 
 export interface UploadConfig {
   workerUrl: string;
@@ -13,9 +14,7 @@ export class Uploader {
   private hasher: Hasher;
   private progressUpdater: number | null = null;
 
-  public constructor(
-    config: UploadConfig
-  ) {
+  public constructor(config: UploadConfig) {
     this.sender = new Sender();
     this.hasher = new Hasher(config.workerUrl);
   }
@@ -61,6 +60,10 @@ export class Uploader {
     }
     this.uploads = [];
     this.stopProgress();
+  }
+
+  public isDone(): Promise<'done'> {
+    return Promise.all(this.uploads.map(u => u.promise)).then(() => 'done');
   }
 
   private startProgress() {

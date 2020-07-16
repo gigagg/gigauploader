@@ -44,14 +44,17 @@ export class Sender {
   private chunkSize = 128 * 1024;
   private isChunkSending = false;
 
-  public constructor() { }
+  public constructor() {}
 
   public sendFile(file: Blob, filename: string, sha1: string, deduplicate: FileStateCallback): Task<FileNode> {
     const task = new Task<FileNode>(file, sha1);
     this.todo.push({
-      name: filename, task, sha1, deduplicate
+      name: filename,
+      task,
+      sha1,
+      deduplicate,
     });
-    this.launchNext();
+    this.launchNextCatchError();
     return task;
   }
 
@@ -61,7 +64,7 @@ export class Sender {
 
   public set paused(p: boolean) {
     this._paused = p;
-    this.launchNext();
+    this.launchNextCatchError();
   }
 
   public remove(task: Task<FileNode>) {
@@ -71,13 +74,22 @@ export class Sender {
         this.current.chunk.abort();
       }
       this.current = undefined;
-      this.launchNext();
+      this.launchNextCatchError();
     } else {
       const index = this.todo.findIndex(w => w.task === task);
       if (index !== -1) {
         this.todo.splice(index, 1);
       }
     }
+  }
+
+  private launchNextCatchError() {
+    this.launchNext()
+    .catch(err => {
+      if (this.current?.task != null) {
+        this.current.task._reject(err);
+      }
+    });
   }
 
   private launchNext(): Promise<UploadState | 'paused'> {
@@ -101,10 +113,7 @@ export class Sender {
       return this.urlLookup();
     }
 
-    if (this.current != null &&
-      this.current.uploadUrl != null &&
-      this.current.token != null &&
-      !this.isChunkSending) {
+    if (this.current != null && this.current.uploadUrl != null && this.current.token != null && !this.isChunkSending) {
       return this.launchNextChunk(this.current);
     }
 
@@ -169,6 +178,8 @@ export class Sender {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }
     const chunk = current.chunk;
+
+    // Chunk nullThe upload is finished !
     if (chunk == null) {
       throw new Error('Chunk should not be null');
     }
@@ -197,6 +208,8 @@ export class Sender {
       }
       throw new Error('unreachable: ' + (value as any).type);
     } catch (err) {
+      // TODO: MANAGE THE alreadyExisting and Locked errors !
+
       this.isChunkSending = false;
       current.task._reject(err);
       this.chunkSize = 1024 * 128;

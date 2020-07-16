@@ -37,7 +37,6 @@ function parseRange(str: string): FileRange | null {
   };
 }
 
-
 export class Chunk {
   private retryLeft = 8;
   private lastByte = 0;
@@ -48,21 +47,21 @@ export class Chunk {
     private readonly file: Blob,
     private readonly filename: string,
     private readonly url: string,
-    private readonly token: string,
+    private readonly token: string | null,
     private readonly firstByte: number,
     size: number,
-    private readonly sessionId: string,
+    private readonly sessionId: string
   ) {
     this.lastByte = Math.min(file.size - 1, firstByte + size);
     this.view = file.slice(this.firstByte, this.lastByte + 1);
   }
 
   public isLast() {
-    return this.lastByte === (this.file.size - 1);
+    return this.lastByte === this.file.size - 1;
   }
 
   public next(size: number, sent: number) {
-    if (this.lastByte === (this.file.size - 1)) {
+    if (this.lastByte === this.file.size - 1) {
       return null;
     }
     return new Chunk(
@@ -91,18 +90,17 @@ export class Chunk {
     this.req = new XMLHttpRequest();
     const req = this.req;
     req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
-    req.onerror = (event) => task._reject({
-      status: 500,
-      response: 'Request error',
-      data: event.target,
-    });
+    req.onerror = (event) =>
+      task._reject({
+        status: 500,
+        response: 'Request error',
+        data: event.target,
+      });
     req.onload = () => {
       try {
         if (req.status < 300) {
           const range = parseRange(
-            req.getResponseHeader('FileRange') ||
-            req.getResponseHeader('range') ||
-            req.responseText
+            req.getResponseHeader('FileRange') || req.getResponseHeader('range') || req.responseText
           );
           if (range != null) {
             task._resolve(range);
@@ -121,11 +119,20 @@ export class Chunk {
 
     req.open('POST', this.url, true);
     req.setRequestHeader('Content-Type', this.file.type || 'application/octet-stream');
-    req.setRequestHeader('Content-Range', 'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size);
-    req.setRequestHeader('Content-Disposition', 'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"');
+    req.setRequestHeader(
+      'Content-Range',
+      'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size
+    );
+    req.setRequestHeader(
+      'Content-Disposition',
+      'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"'
+    );
     req.setRequestHeader('Session-Id', this.sessionId);
-    req.setRequestHeader('Authorization', 'Bearer ' + this.token);
-    // req.withCredentials = true;
+    if (this.token == null || this.token === '') {
+      req.withCredentials = true;
+    } else {
+      req.setRequestHeader('Authorization', 'Bearer ' + this.token);
+    }
     req.send(this.view);
 
     return task;

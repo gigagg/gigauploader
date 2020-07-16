@@ -14,7 +14,7 @@ export interface FileStateCreated {
 export interface FileStateToUpload {
   state: 'to_upload';
   uploadUrl: string;
-  token: string;
+  token: string | null;
 }
 
 export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
@@ -46,7 +46,12 @@ export class Sender {
 
   public constructor() {}
 
-  public sendFile(file: Blob, filename: string, sha1: string, deduplicate: FileStateCallback): Task<FileNode> {
+  public sendFile(
+    file: Blob,
+    filename: string,
+    sha1: string,
+    deduplicate: FileStateCallback
+  ): Task<FileNode> {
     const task = new Task<FileNode>(file, sha1);
     this.todo.push({
       name: filename,
@@ -76,7 +81,7 @@ export class Sender {
       this.current = undefined;
       this.launchNextCatchError();
     } else {
-      const index = this.todo.findIndex(w => w.task === task);
+      const index = this.todo.findIndex((w) => w.task === task);
       if (index !== -1) {
         this.todo.splice(index, 1);
       }
@@ -113,7 +118,7 @@ export class Sender {
       return this.urlLookup();
     }
 
-    if (this.current != null && this.current.uploadUrl != null && this.current.token != null && !this.isChunkSending) {
+    if (this.current != null && this.current.uploadUrl != null && !this.isChunkSending) {
       return this.launchNextChunk(this.current);
     }
 
@@ -169,11 +174,19 @@ export class Sender {
     if (this._paused) {
       return Promise.resolve('paused');
     }
-    if (current.uploadUrl == null || current.token == null) {
-      throw new Error('url and token should not be null');
+    if (current.uploadUrl == null) {
+      throw new Error('url should not be null');
     }
     if (current.chunk == null) {
-      current.chunk = new Chunk(current.task.file, current.name, current.uploadUrl, current.token, 0, this.chunkSize, current.sha1);
+      current.chunk = new Chunk(
+        current.task.file,
+        current.name,
+        current.uploadUrl,
+        current.token,
+        0,
+        this.chunkSize,
+        current.sha1
+      );
     } else {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }

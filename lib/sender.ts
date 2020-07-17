@@ -191,11 +191,6 @@ export class Sender {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }
     const chunk = current.chunk;
-
-    // Chunk nullThe upload is finished !
-    if (chunk == null) {
-      throw new Error('Chunk should not be null');
-    }
     current.sent = 0;
 
     this.isChunkSending = true;

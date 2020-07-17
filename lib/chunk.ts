@@ -52,7 +52,7 @@ export class Chunk {
     size: number,
     private readonly sessionId: string
   ) {
-    this.lastByte = Math.min(file.size - 1, firstByte + size);
+    this.lastByte = Math.min(file.size - 1, firstByte + size - 1);
     this.view = file.slice(this.firstByte, this.lastByte + 1);
   }
 
@@ -61,16 +61,27 @@ export class Chunk {
   }
 
   public next(size: number, sent: number) {
-    if (this.lastByte === this.file.size - 1) {
-      return null;
+    if (sent >= this.file.size) {
+      // the whole file is already on the server
+      // we still re-upload the last chunk to make sure the file is correctly handled by the backend
+      return new Chunk(
+        this.file,
+        this.filename,
+        this.url,
+        this.token,
+        sent + 1 - size,
+        size,
+        this.sessionId
+      );
     }
+
     return new Chunk(
       this.file,
       this.filename,
       this.url,
       this.token,
       sent + 1,
-      Math.min(size, this.file.size - this.lastByte - 1),
+      size,
       this.sessionId
     );
   }

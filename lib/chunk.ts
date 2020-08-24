@@ -101,12 +101,8 @@ export class Chunk {
     this.req = new XMLHttpRequest();
     const req = this.req;
     req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
-    req.onerror = (event) =>
-      task._reject({
-        status: 500,
-        response: 'Request error',
-        data: event.target,
-      });
+    req.onerror = () =>
+      this.retryOrReject(task, 'Network request failed');
     req.onload = () => {
       try {
         if (req.status < 300) {

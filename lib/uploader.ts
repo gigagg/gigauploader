@@ -1,7 +1,6 @@
 import { Upload } from './upload';
 import { FileStateCallback, Sender } from './sender';
 import { Hasher } from './hasher';
-import { FileNode } from './filenode';
 
 export interface UploadConfig {
   workerUrl: string;

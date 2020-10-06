@@ -19,12 +19,16 @@ export interface FileStateToUpload {
 
 export type FileState = FileStateExisting | FileStateCreated | FileStateToUpload;
 
-export type FileStateCallback = (sha1: string, filename: string) => Promise<FileState>;
+/**
+ * mdate is the unix timestamp in seconds of the lastModified date (or null if not found)
+ */
+export type FileStateCallback = (sha1: string, filename: string, mdate: number | null) => Promise<FileState>;
 
 export interface TodoItem {
   name: string;
   task: Task<FileNode>;
   sha1: string;
+  mdate: number | null;
   deduplicate: FileStateCallback;
 }
 
@@ -46,17 +50,13 @@ export class Sender {
 
   public constructor() {}
 
-  public sendFile(
-    file: Blob,
-    filename: string,
-    sha1: string,
-    deduplicate: FileStateCallback
-  ): Task<FileNode> {
+  public sendFile(file: Blob, filename: string, sha1: string, deduplicate: FileStateCallback): Task<FileNode> {
     const task = new Task<FileNode>(file, sha1);
     this.todo.push({
       name: filename,
       task,
       sha1,
+      mdate: file instanceof File ? Math.round(file.lastModified / 1000) : null,
       deduplicate,
     });
     this.launchNextCatchError();
@@ -89,8 +89,7 @@ export class Sender {
   }
 
   private launchNextCatchError() {
-    this.launchNext()
-    .catch(err => {
+    this.launchNext().catch((err) => {
       if (this.current?.task != null) {
         this.current.task._reject(err);
       }
@@ -134,7 +133,7 @@ export class Sender {
     }
     const current = this.current;
     try {
-      const response = await current.deduplicate(this.current.sha1, this.current.name);
+      const response = await current.deduplicate(this.current.sha1, this.current.name, this.current.mdate);
       switch (response.state) {
         case 'already_existing':
           if (response.node == null) {
@@ -178,15 +177,7 @@ export class Sender {
       throw new Error('url should not be null');
     }
     if (current.chunk == null) {
-      current.chunk = new Chunk(
-        current.task.file,
-        current.name,
-        current.uploadUrl,
-        current.token,
-        0,
-        this.chunkSize,
-        current.sha1
-      );
+      current.chunk = new Chunk(current.task.file, current.name, current.uploadUrl, current.token, 0, this.chunkSize, current.sha1);
     } else {
       current.chunk = current.chunk.next(this.chunkSize, current.sent);
     }

@@ -103,6 +103,8 @@ export class Chunk {
     req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
     req.onerror = () =>
       this.retryOrReject(task, 'Network request failed');
+    req.ontimeout = () =>
+      this.retryOrReject(task, 'Request timeout');
     req.onload = () => {
       try {
         if (req.status < 300) {
@@ -140,6 +142,7 @@ export class Chunk {
     } else {
       req.setRequestHeader('Authorization', 'Bearer ' + this.token);
     }
+    req.timeout = 30000;
     req.send(this.view);
 
     return task;

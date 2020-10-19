@@ -57,7 +57,7 @@ export class Hasher {
   }
 
   public hashFile(file: Blob): Task<string> {
-    const task = new Task<string>(file, this.maxId++, );
+    const task = new Task<string>(file, this.maxId++);
     this.todo.push(task);
     this.launchNext();
     return task;

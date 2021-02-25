@@ -15,11 +15,7 @@ export class UploadProgress {
   public percent = 0;
   public speed = 0; // bytes/milisecond
 
-
-  public constructor(
-    public total: number,
-  ) {
-  }
+  public constructor(public total: number) {}
 
   public _save() {
     if (this.time <= 0) {
@@ -32,15 +28,15 @@ export class UploadProgress {
       });
       this.index = this.saved.length - 1;
     } else {
-      this.index = (this.index === this.saved.length - 1) ? 0 : this.index + 1;
+      this.index = this.index === this.saved.length - 1 ? 0 : this.index + 1;
       this.saved[this.index] = {
         done: this.done,
         time: this.time,
       };
     }
 
-    const previous = (this.index === this.saved.length - 1) ? 0 : this.index + 1;
-    this.percent = 100 * this.done / this.total;
+    const previous = this.index === this.saved.length - 1 ? 0 : this.index + 1;
+    this.percent = (100 * this.done) / this.total;
     if (this.index !== previous && this.saved[this.index].time - this.saved[previous].time !== 0) {
       this.speed = (this.saved[this.index].done - this.saved[previous].done) / (this.saved[this.index].time - this.saved[previous].time);
     }
@@ -70,12 +66,15 @@ export class Upload {
   public promise: Promise<FileNode | null>;
   public fileSize: number;
 
+  /** some data the user may want to associate with this uupload */
+  private data: any = null;
+
   public constructor(
     private file: Blob,
     public fileName: string,
     private deduplicate: FileStateCallback,
     private hasher: Hasher,
-    private sender: Sender,
+    private sender: Sender
   ) {
     this.progress = new UploadProgress(file.size);
     this.promise = this.start();
@@ -85,14 +84,14 @@ export class Upload {
   private async start(): Promise<FileNode | null> {
     try {
       this.hashTask = this.hasher.hashFile(this.file);
-      const sha1 = await this.hashTask.tap(hashed => {
+      const sha1 = await this.hashTask.tap((hashed) => {
         this.state = 'hashing';
         this.progress._setProgress(hashed);
       });
       this.progress._setProgress(this.file.size);
 
       this.sendTask = this.sender.sendFile(this.file, this.fileName, sha1, this.deduplicate);
-      const fileNode = await this.sendTask.tap(sent => {
+      const fileNode = await this.sendTask.tap((sent) => {
         if (sent === 0) {
           this.progress._reset();
         }
@@ -102,7 +101,6 @@ export class Upload {
       this.state = 'finished';
       this.progress._setProgress(this.file.size);
       return fileNode;
-
     } catch (err) {
       if (this.state !== 'aborted') {
         this.state = 'error';
@@ -128,5 +126,13 @@ export class Upload {
 
   public _updateProgress() {
     this.progress._save();
+  }
+
+  public setCustomData(data: any) {
+    this.data = data;
+  }
+
+  public getCustomData<T>(): T {
+    return this.data;
   }
 }

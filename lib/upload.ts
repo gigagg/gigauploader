@@ -91,6 +91,10 @@ export class Upload {
       });
       this.progress._setProgress(this.file.size);
 
+      if (this.state === 'aborted') {
+        return null;
+      }
+
       this.sendTask = this.sender.sendFile(this.file, this.fileName, sha1, this.deduplicate);
       const fileNode = await this.sendTask.tap((sent) => {
         if (sent === 0) {

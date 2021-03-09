@@ -13,7 +13,8 @@ export class UploadProgress {
   private time = 0;
   public done = 0;
   public percent = 0;
-  public speed = 0; // bytes/milisecond
+  /** In byte per milisecond */
+  public speed = 0;
 
   public constructor(public total: number) {}
 

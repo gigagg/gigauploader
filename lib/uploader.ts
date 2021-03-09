@@ -54,15 +54,15 @@ export class Uploader {
   }
 
   public clear() {
-    for (let i = 0; i < this.uploads.length; i++) {
-      this.uploads[i].abort();
+    for (let i = this.uploads.length; i > 0; i--) {
+      this.uploads[i - 1].abort();
     }
     this.uploads = [];
     this.stopProgress();
   }
 
   public isDone(): Promise<'done'> {
-    return Promise.all(this.uploads.map(u => u.promise)).then(() => 'done');
+    return Promise.all(this.uploads.map((u) => u.promise)).then(() => 'done');
   }
 
   private startProgress() {

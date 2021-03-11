@@ -4,6 +4,12 @@ import { Hasher } from './hasher';
 
 export interface UploadConfig {
   workerUrl: string;
+
+  /**
+   * Optional progress callback, called each time the
+   * progress of heach upload has been updated
+   */
+  onProgress?: () => void;
 }
 
 export class Uploader {
@@ -12,10 +18,12 @@ export class Uploader {
   private sender: Sender;
   private hasher: Hasher;
   private progressUpdater: number | null = null;
+  private onProgress: (() => void) | null = null;
 
   public constructor(config: UploadConfig) {
     this.sender = new Sender();
     this.hasher = new Hasher(config.workerUrl);
+    this.onProgress = config.onProgress || null;
   }
 
   public get paused(): boolean {
@@ -70,6 +78,9 @@ export class Uploader {
       this.progressUpdater = setInterval(() => {
         for (let i = 0; i < this.uploads.length; i++) {
           this.uploads[i]._updateProgress();
+        }
+        if (this.uploads.length > 0 && this.onProgress != null) {
+          this.onProgress();
         }
       }, 1000);
     }

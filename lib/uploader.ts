@@ -77,18 +77,22 @@ export class Uploader {
 
   private startProgress() {
     if (this.progressUpdater == null && this.uploads.length > 0) {
-      this.progressUpdater = setInterval(() => {
-        for (let i = 0; i < this.uploads.length; i++) {
-          this.uploads[i]._updateProgress();
-        }
-        if (this.uploads.length > 0 && this.onProgress != null) {
-          this.onProgress();
-        }
-      }, 1000);
+      this.progressUpdater = setInterval(() => this.refreshProgress(), 1000);
+    }
+  }
+
+  private refreshProgress() {
+    for (let i = 0; i < this.uploads.length; i++) {
+      this.uploads[i]._updateProgress();
+    }
+    if (this.onProgress != null) {
+      this.onProgress();
     }
   }
 
   private stopProgress() {
+    this.refreshProgress();
+
     if (this.progressUpdater != null && (this.uploads.length === 0 || this._paused)) {
       clearInterval(this.progressUpdater);
       this.progressUpdater = null;

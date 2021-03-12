@@ -58,7 +58,9 @@ export class Uploader {
       this.uploads.splice(index, 1);
       upload.abort();
     }
-    this.stopProgress();
+    if (this.uploads.length === 0) {
+      this.stopProgress();
+    }
   }
 
   public clear() {

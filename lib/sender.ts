@@ -188,11 +188,12 @@ export class Sender {
     const startSendAt = new Date().getTime();
     try {
       const value = await chunk.send().tap((done: number) => {
-        current.task._progress(current.sent + done);
+        current.task._progress(done);
       });
       this.isChunkSending = false;
       if (value.type === 'range') {
-        current.task._progress(value.end);
+        const jump = value.end - current.chunk.endAt;
+        current.task._progress(value.end, jump);
         current.sent = value.end;
         const duration = new Date().getTime() - startSendAt;
         this.refreshChunkSize(duration);

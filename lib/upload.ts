@@ -11,6 +11,7 @@ export class UploadProgress {
   private index = -1;
 
   private time = 0;
+  private jump = 0; // Only used for speed calculation.
   public done = 0;
   public percent = 0;
   /** In byte per milisecond */
@@ -24,14 +25,14 @@ export class UploadProgress {
     }
     if (this.saved.length < this.avgSize) {
       this.saved.push({
-        done: this.done,
+        done: this.done - this.jump,
         time: this.time,
       });
       this.index = this.saved.length - 1;
     } else {
       this.index = this.index === this.saved.length - 1 ? 0 : this.index + 1;
       this.saved[this.index] = {
-        done: this.done,
+        done: this.done - this.jump,
         time: this.time,
       };
     }
@@ -43,8 +44,11 @@ export class UploadProgress {
     }
   }
 
-  public _setProgress(done: number) {
+  public _setProgress(done: number, jump?: number) {
     this.done = done;
+    if (jump != null && jump > 0) {
+      this.jump += jump;
+    }
     this.time = new Date().getTime();
   }
 
@@ -96,12 +100,12 @@ export class Upload {
       }
 
       this.sendTask = this.sender.sendFile(this.file, this.fileName, sha1, this.deduplicate);
-      const fileNode = await this.sendTask.tap((sent) => {
+      const fileNode = await this.sendTask.tap((sent, jump) => {
         if (sent === 0) {
           this.progress._reset();
         }
         this.state = 'sending';
-        this.progress._setProgress(sent);
+        this.progress._setProgress(sent, jump);
       });
       this.state = 'finished';
       this.progress._setProgress(this.file.size);

@@ -56,6 +56,13 @@ export class Chunk {
     this.view = file.slice(this.firstByte, this.lastByte + 1);
   }
 
+  public get startAt() {
+    return this.firstByte;
+  }
+  public get endAt() {
+    return this.lastByte;
+  }
+
   public isLast() {
     return this.lastByte === this.file.size - 1;
   }
@@ -64,26 +71,10 @@ export class Chunk {
     if (sent >= this.file.size) {
       // the whole file is already on the server
       // we still re-upload the last chunk to make sure the file is correctly handled by the backend
-      return new Chunk(
-        this.file,
-        this.filename,
-        this.url,
-        this.token,
-        sent + 1 - size,
-        size,
-        this.sessionId
-      );
+      return new Chunk(this.file, this.filename, this.url, this.token, sent + 1 - size, size, this.sessionId);
     }
 
-    return new Chunk(
-      this.file,
-      this.filename,
-      this.url,
-      this.token,
-      sent + 1,
-      size,
-      this.sessionId
-    );
+    return new Chunk(this.file, this.filename, this.url, this.token, sent + 1, size, this.sessionId);
   }
 
   public abort() {
@@ -101,16 +92,12 @@ export class Chunk {
     this.req = new XMLHttpRequest();
     const req = this.req;
     req.upload.onprogress = (event: ProgressEvent) => task._progress(event.loaded + this.firstByte);
-    req.onerror = () =>
-      this.retryOrReject(task, 'Network request failed');
-    req.ontimeout = () =>
-      this.retryOrReject(task, 'Request timeout');
+    req.onerror = () => this.retryOrReject(task, 'Network request failed');
+    req.ontimeout = () => this.retryOrReject(task, 'Request timeout');
     req.onload = () => {
       try {
         if (req.status < 300) {
-          const range = parseRange(
-            req.getResponseHeader('FileRange') || req.getResponseHeader('range') || req.responseText
-          );
+          const range = parseRange(req.getResponseHeader('FileRange') || req.getResponseHeader('range') || req.responseText);
           if (range != null) {
             task._resolve(range);
           } else {
@@ -128,14 +115,8 @@ export class Chunk {
 
     req.open('POST', this.url, true);
     req.setRequestHeader('Content-Type', this.file.type || 'application/octet-stream');
-    req.setRequestHeader(
-      'Content-Range',
-      'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size
-    );
-    req.setRequestHeader(
-      'Content-Disposition',
-      'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"'
-    );
+    req.setRequestHeader('Content-Range', 'bytes ' + this.firstByte + '-' + this.lastByte + '/' + this.file.size);
+    req.setRequestHeader('Content-Disposition', 'attachment, filename="' + encodeURIComponent(this.filename || 'name') + '"');
     req.setRequestHeader('Session-Id', this.sessionId);
     if (this.token == null || this.token === '') {
       req.withCredentials = true;
